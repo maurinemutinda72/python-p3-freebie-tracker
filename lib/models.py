@@ -1,29 +1,46 @@
-from sqlalchemy import ForeignKey, Column, Integer, String, MetaData
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, ForeignKey, create_engine
+from sqlalchemy.orm import relationship, backref, declarative_base, sessionmaker
 
-convention = {
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-}
-metadata = MetaData(naming_convention=convention)
+Base = declarative_base()
 
-Base = declarative_base(metadata=metadata)
-
+# Company Model
 class Company(Base):
-    __tablename__ = 'companies'
+    __tablename__ = "companies"
 
-    id = Column(Integer(), primary_key=True)
-    name = Column(String())
-    founding_year = Column(Integer())
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    founding_year = Column(Integer, nullable=False)
 
-    def __repr__(self):
-        return f'<Company {self.name}>'
+    # Relationships
+    freebies = relationship("Freebie", back_populates="company", overlaps="devs,freebies")
+    devs = relationship("Dev", secondary="freebies", back_populates="companies", overlaps="devs,freebies")
 
+# Dev Model
 class Dev(Base):
-    __tablename__ = 'devs'
+    __tablename__ = "devs"
 
-    id = Column(Integer(), primary_key=True)
-    name= Column(String())
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
 
-    def __repr__(self):
-        return f'<Dev {self.name}>'
+    # Relationships
+    freebies = relationship("Freebie", back_populates="dev", overlaps="companies,freebies")
+    companies = relationship("Company", secondary="freebies", back_populates="devs", overlaps="companies,freebies")
+
+# Freebie Model
+class Freebie(Base):
+    __tablename__ = "freebies"
+
+    id = Column(Integer, primary_key=True)
+    item_name = Column(String, nullable=False)
+    value = Column(Integer, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"))
+    dev_id = Column(Integer, ForeignKey("devs.id"))
+
+    # Relationships 
+    company = relationship("Company", back_populates="freebies", overlaps="devs,freebies")
+    dev = relationship("Dev", back_populates="freebies", overlaps="companies,freebies")
+
+# Database Setup
+engine = create_engine("sqlite:///freebies.db")
+Session = sessionmaker(bind=engine)
+session = Session()
